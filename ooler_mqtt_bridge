@@ -28,7 +28,8 @@ async def main():
             async with Client(
                 hostname=config["mqtt_broker"],
                 username=config["mqtt_username"] if "mqtt_username" in config else None,
-                password=config["mqtt_password"] if "mqtt_password" in config else None) as mqtt:
+                password=config["mqtt_password"] if "mqtt_password" in config else None,
+                will=get_last_will(myooler)) as mqtt:
                 await send_discovery(mqtt, myooler)
                 await mqtt.subscribe(f"ooler/{sanitise_mac(myooler.address)}/+/set")
                 async with asyncio.TaskGroup() as tg:
@@ -44,6 +45,14 @@ async def main():
             await asyncio.sleep(reconnect_interval)
         except BaseException as error:
             logger.critical(f'Error "{error}".')
+            # Always send the last will message even if we are exiting "gracefully" with an exception
+            will: aiomqtt.Will = get_last_will(myooler)
+            async with Client(
+                hostname=config["mqtt_broker"],
+                username=config["mqtt_username"] if "mqtt_username" in config else None,
+                password=config["mqtt_password"] if "mqtt_password" in config else None,
+                will=will) as mqtt:
+                await mqtt.publish(will.topic, will.payload, retain=will.retain)
             raise
 
 
@@ -194,6 +203,16 @@ async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, st
         },
     }
     return cfg_payloads
+
+
+def get_last_will(myooler: ooler.Ooler) -> aiomqtt.Will:
+    """Return the last will message for the device"""
+    return aiomqtt.Will(
+        topic=get_status_topic(myooler),
+        payload="offline",
+        qos=0,
+        retain=True,
+    )
 
 
 def prepare_payload(payload: Any) -> str:
