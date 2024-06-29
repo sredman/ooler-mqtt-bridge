@@ -116,6 +116,11 @@ async def control_power(mqtt: Client, myooler: ooler.Ooler) -> None:
                 await send_update(mqtt, myooler)
 
 
+def get_status_topic(myooler: ooler.Ooler) -> str:
+    """Get the status topic of the Ooler"""
+    return f"ooler/{sanitise_mac(myooler.address)}/status"
+
+
 async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, str]]:
     """Return the discovery payloads for the device"""
     device_definition = {
@@ -125,10 +130,13 @@ async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, st
         "suggested_area": "Bedroom",
     }
 
+    status_topic = get_status_topic(myooler)
     temp_unit = await myooler.get_temperature_unit();
     cfg_payloads = {
+        f"{status_topic}": "online",
         f"{config['homeassistant_prefix']}/climate/{sanitise_mac(myooler.address)}/config": {
             "name": await myooler.get_name(),
+            "availability_topic": status_topic,
             "mode_state_topic": f"ooler/{sanitise_mac(myooler.address)}/state",
             "mode_state_template": "{{ value_json.power }}",
             "current_temperature_topic": f"ooler/{sanitise_mac(myooler.address)}/state",
@@ -152,6 +160,7 @@ async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, st
         },
         f"{config['homeassistant_prefix']}/sensor/{sanitise_mac(myooler.address)}_water_level/config": {
             "name": "Water Level",
+            "availability_topic": status_topic,
             "state_topic": f"ooler/{sanitise_mac(myooler.address)}/state",
             "unit_of_measurement": "%",
             "value_template": "{{ value_json.water_level }}",
@@ -160,6 +169,7 @@ async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, st
         },
         f"{config['homeassistant_prefix']}/switch/{sanitise_mac(myooler.address)}_cleaning/config": {
             "name": "UV Cleaning",
+            "availability_topic": status_topic,
             "state_topic": f"ooler/{sanitise_mac(myooler.address)}/state",
             "command_topic": f"ooler/{sanitise_mac(myooler.address)}/cleaning/set",
             "value_template": "{{ value_json.cleaning }}",
@@ -170,6 +180,7 @@ async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, st
         },
         f"{config['homeassistant_prefix']}/select/{sanitise_mac(myooler.address)}_temp_units/config": {
             "name": "Device Temperature Units",
+            "availability_topic": status_topic,
             "state_topic": f"ooler/{sanitise_mac(myooler.address)}/state",
             "command_topic": f"ooler/{sanitise_mac(myooler.address)}/temp_units/set",
             "value_template": "{{ value_json.temp_units }}",
