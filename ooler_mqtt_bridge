@@ -9,7 +9,7 @@ from aiomqtt import Client
 from ooler import constants
 import ooler
 import logging
-from typing import Dict
+from typing import Dict, Any
 
 
 async def main():
@@ -181,6 +181,14 @@ async def get_discovery_payloads(myooler: ooler.Ooler) -> Dict[str, Dict[str, st
     return cfg_payloads
 
 
+def prepare_payload(payload: Any) -> str:
+    """Prepare a payload for sending"""
+    if isinstance(payload, str):
+        # A raw string need not be converted to JSON
+        return payload
+    return json.dumps(payload)
+
+
 async def send_discovery(mqtt: Client, myooler: ooler.Ooler) -> None:
     """(Re-)send the device discovery payload
         This is needed when changing values in the payload,
@@ -188,7 +196,7 @@ async def send_discovery(mqtt: Client, myooler: ooler.Ooler) -> None:
     """
     cfg_payloads = await get_discovery_payloads(myooler)
     for topic, payload in cfg_payloads.items():
-        await mqtt.publish(topic, json.dumps(payload), retain=True)
+        await mqtt.publish(topic, prepare_payload(payload), retain=True)
 
 
 async def send_update_loop(mqtt: Client, myooler: ooler.Ooler) -> None:
