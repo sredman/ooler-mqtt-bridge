@@ -22,6 +22,8 @@ async def main():
     if "tz" in config:
         await myooler.set_current_time(config["tz"])
 
+    should_send_will = "send_will" in config and config["send_will"]
+
     while True:
         reconnect_interval = 5
         try:
@@ -29,7 +31,7 @@ async def main():
                 hostname=config["mqtt_broker"],
                 username=config["mqtt_username"] if "mqtt_username" in config else None,
                 password=config["mqtt_password"] if "mqtt_password" in config else None,
-                will=get_last_will(myooler)) as mqtt:
+                will=get_last_will(myooler) if should_send_will else None) as mqtt:
                 await send_discovery(mqtt, myooler)
                 await mqtt.subscribe(f"ooler/{sanitise_mac(myooler.address)}/+/set")
                 async with asyncio.TaskGroup() as tg:
@@ -45,14 +47,16 @@ async def main():
             await asyncio.sleep(reconnect_interval)
         except BaseException as error:
             logger.critical(f'Error "{error}".')
-            # Always send the last will message even if we are exiting "gracefully" with an exception
-            will: aiomqtt.Will = get_last_will(myooler)
-            async with Client(
-                hostname=config["mqtt_broker"],
-                username=config["mqtt_username"] if "mqtt_username" in config else None,
-                password=config["mqtt_password"] if "mqtt_password" in config else None,
-                will=will) as mqtt:
-                await mqtt.publish(will.topic, will.payload, retain=will.retain)
+
+            if should_send_will:
+                # Always send the last will message even if we are exiting "gracefully" with an exception
+                will: aiomqtt.Will = get_last_will(myooler)
+                async with Client(
+                    hostname=config["mqtt_broker"],
+                    username=config["mqtt_username"] if "mqtt_username" in config else None,
+                    password=config["mqtt_password"] if "mqtt_password" in config else None,
+                    will=will) as mqtt:
+                    await mqtt.publish(will.topic, will.payload, retain=will.retain)
             raise
 
 

@@ -10,3 +10,5 @@ update_interval: 60
 # Login information to authenticate to MQTT
 mqtt_username: username
 mqtt_password: password
+# Flag controlling whether or not to send last will messages
+send_will: true
