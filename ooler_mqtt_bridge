@@ -41,6 +41,9 @@ async def main():
         except aiomqtt.MqttError as error:
             logger.warning(f'Error "{error}". Reconnecting in {reconnect_interval} seconds.')
             await asyncio.sleep(reconnect_interval)
+        except BaseException as error:
+            logger.critical(f'Error "{error}".')
+            raise
 
 
 def sanitise_mac(mac: str) -> str:
