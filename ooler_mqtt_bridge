@@ -17,6 +17,7 @@ async def main():
     """Initiate and start the loop"""
     myooler = ooler.Ooler(address=config["ooler_mac"], stay_connected=True)
     await myooler.connect()
+    logger.info(f"Successfully connected to ooler {myooler.address}.")
 
     if "tz" in config:
         await myooler.set_current_time(config["tz"])
